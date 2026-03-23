@@ -1,3 +1,4 @@
+import os
 import joblib
 import pandas as pd
 import numpy as np
@@ -11,14 +12,37 @@ indices = None
 def load_models():
     """Loads all ML models into memory at startup."""
     global tfidf, similarity, products_db, indices
+    
+    # Try multiple paths: local dev (../model/) and Railway (./model/ or just model/)
+    base_dir = os.path.dirname(os.path.abspath(__file__))
+    possible_paths = [
+        os.path.join(base_dir, '..', 'model'),   # Local dev: backend/../model
+        os.path.join(base_dir, 'model'),          # If model is inside backend/
+        '../model',                                # Relative fallback
+        'model',                                   # Current dir fallback
+    ]
+    
+    model_dir = None
+    for p in possible_paths:
+        if os.path.exists(os.path.join(p, 'products.pkl')):
+            model_dir = p
+            break
+    
+    if model_dir is None:
+        print("ERROR: Could not find model directory!")
+        products_db = []
+        return
+    
     try:
-        tfidf = joblib.load('../model/tfidf.pkl')
-        similarity = joblib.load('../model/similarity.pkl')
-        products_db = joblib.load('../model/products.pkl')
-        indices = joblib.load('../model/indices.pkl')
-        print("Successfully loaded ML models.")
+        tfidf = joblib.load(os.path.join(model_dir, 'tfidf.pkl'))
+        similarity = joblib.load(os.path.join(model_dir, 'similarity.pkl'))
+        products_db = joblib.load(os.path.join(model_dir, 'products.pkl'))
+        indices = joblib.load(os.path.join(model_dir, 'indices.pkl'))
+        print(f"Successfully loaded ML models from {model_dir}.")
     except Exception as e:
         print(f"Error loading models: {e}")
+        products_db = []
+
 
 def get_recommendations(product_id: int):
     """
